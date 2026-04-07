@@ -1,5 +1,4 @@
 # crypto.py >>> AES-256 (CBC mode), SHA-256 visualizer, PBKDF2 key derivation
-
 # implementing these cryptographic primitives from scratch:
 #   1. AES-256 encryption/decryption (FIPS 197)
 #   2. PBKDF2-SHA256 key derivation  (RFC 2898)
@@ -223,14 +222,14 @@ def aes_encrypt_cbc(plaintext: bytes, key: bytes, iv: bytes) -> bytes:
     assert len(key) == AES_KEY_SIZE,  f"Key must be {AES_KEY_SIZE} bytes."
     assert len(iv)  == AES_BLOCK_SIZE, f"IV must be {AES_BLOCK_SIZE} bytes."
     round_keys = _key_schedule(key)
-    padded     = _pkcs7_pad(plaintext)
+    padded = _pkcs7_pad(plaintext)
     ciphertext = b""
     prev_block = iv
     for i in range(0, len(padded), AES_BLOCK_SIZE):
-        block  = bytes(a ^ b for a, b in zip(padded[i:i+AES_BLOCK_SIZE], prev_block))
-        enc    = _aes_encrypt_block(block, round_keys)
-        ciphertext  += enc
-        prev_block   = enc
+        block = bytes(a ^ b for a, b in zip(padded[i:i+AES_BLOCK_SIZE], prev_block))
+        enc = _aes_encrypt_block(block, round_keys)
+        ciphertext += enc
+        prev_block = enc
     return ciphertext
 def aes_decrypt_cbc(ciphertext: bytes, key: bytes, iv: bytes) -> bytes:
     """
@@ -329,8 +328,8 @@ def _sha256_preprocess(message: bytes) -> list[bytes]:
     3. Append original message length as 64-bit big-endian integer
     Returns a list of 64-byte (512-bit) message blocks.
     """
-    msg      = bytearray(message)
-    bit_len  = len(message) * 8
+    msg = bytearray(message)
+    bit_len = len(message) * 8
     msg.append(0x80)
     while len(msg) % 64 != 56:
         msg.append(0x00)
