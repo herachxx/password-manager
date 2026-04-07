@@ -39,8 +39,8 @@ Please include:
 
 ## Security Design References
 
-- NIST SP 800-132 — Recommendation for Password-Based Key Derivation
-- FIPS 197 — Advanced Encryption Standard (AES)
-- FIPS 180-4 — Secure Hash Standard (SHS)
-- RFC 2898 — PKCS #5: Password-Based Cryptography Specification
-- RFC 2104 — HMAC: Keyed-Hashing for Message Authentication
+- NIST SP 800-132 - Recommendation for Password-Based Key Derivation
+- FIPS 197 - Advanced Encryption Standard (AES)
+- FIPS 180-4 - Secure Hash Standard (SHS)
+- RFC 2898 - PKCS #5: Password-Based Cryptography Specification
+- RFC 2104 - HMAC: Keyed-Hashing for Message Authentication
