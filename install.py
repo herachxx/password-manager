@@ -9,7 +9,6 @@ import importlib.util
 import shutil
 import argparse
 import textwrap
-
 print(
 '''
 Usage:
@@ -17,16 +16,9 @@ Usage:
 >>> python install.py /path/to/target (installs to a custom directory)
 >>> python install.py --check (verify an existing installation)
 ''')
-
-# =============================================================================
-# TERMINAL COLOURS  (disabled automatically on Windows without ANSI support)
-# =============================================================================
-
 def _supports_colour() -> bool:
     """Return True if the terminal can render ANSI escape codes."""
     if platform.system() == "Windows":
-        # Windows 10 v1511+ supports ANSI in cmd/powershell, but not always.
-        # Enable it by attempting to set the console mode; fall back silently.
         try:
             import ctypes
             kernel = ctypes.windll.kernel32          # type: ignore
@@ -35,8 +27,6 @@ def _supports_colour() -> bool:
         except Exception:
             return False
     return hasattr(sys.stdout, "isatty") and sys.stdout.isatty()
-
-
 USE_COLOUR = _supports_colour()
 R  = "\033[0m"  if USE_COLOUR else ""
 B  = "\033[1m"  if USE_COLOUR else ""
@@ -45,16 +35,11 @@ G  = "\033[92m" if USE_COLOUR else ""
 Y  = "\033[93m" if USE_COLOUR else ""
 RE = "\033[91m" if USE_COLOUR else ""
 DM = "\033[2m"  if USE_COLOUR else ""
-
-W = 72   # Terminal width for formatting
-
-
+W = 72
 def _banner(text: str) -> None:
     print(f"\n{C}{'─' * W}{R}")
     print(f"{B}{C}{text.center(W)}{R}")
     print(f"{C}{'─' * W}{R}")
-
-
 def _ok(text: str)   -> None: print(f"  {G}✔{R}  {text}")
 def _err(text: str)  -> None: print(f"  {RE}✘{R}  {text}")
 def _warn(text: str) -> None: print(f"  {Y}⚠{R}  {text}")
@@ -62,12 +47,6 @@ def _info(text: str) -> None: print(f"  {C}ℹ{R}  {text}")
 def _dim(text: str)  -> None: print(f"  {DM}{text}{R}")
 def _step(n: int, total: int, text: str) -> None:
     print(f"\n  {B}[{n}/{total}]{R}  {text}")
-
-
-# =============================================================================
-# EMBEDDED SOURCE FILES  (base64-encoded, decoded at install time)
-# =============================================================================
-
 FILES = {
     "constants.py": (
         "IyBjb25zdGFudHMucHkgPj4+IHNpbmdsZSBzb3VyY2Ugb2YgdHJ1dGggZm9yIGFsbCBjb25zdGFudHMs"
@@ -1242,14 +1221,7 @@ FILES = {
         "PSAiX19tYWluX18iOgogICAgbWFpbigpCg=="
     ),
 }
-
-
-# =============================================================================
-# STEP 1 — PYTHON VERSION CHECK
-# =============================================================================
-
 MIN_VERSION = (3, 10)
-
 def check_python_version() -> None:
     """
     Require Python 3.10+.
@@ -1266,21 +1238,14 @@ def check_python_version() -> None:
         _info("Download the latest Python from https://www.python.org/downloads/")
         sys.exit(1)
     _ok(f"Python {v.major}.{v.minor}.{v.micro}  ✓")
-
-
-# =============================================================================
-# STEP 2 — PLATFORM DETECTION
-# =============================================================================
-
 def detect_platform() -> dict:
     """
     Detect OS, architecture, and Python executable path.
     Returns a dict with keys: os, arch, python, is_windows, is_mac, is_linux.
     """
-    system   = platform.system()          # "Windows", "Darwin", "Linux"
+    system   = platform.system()          # "Windows", "Linux"
     machine  = platform.machine()         # "AMD64", "x86_64", "arm64", etc.
     python   = sys.executable
-
     info = {
         "os":         system,
         "arch":       machine,
@@ -1290,16 +1255,9 @@ def detect_platform() -> dict:
         "is_linux":   system == "Linux",
         "version":    platform.version(),
     }
-
     _ok(f"OS          : {system} {machine}")
     _ok(f"Python path : {python}")
     return info
-
-
-# =============================================================================
-# STEP 3 — DIRECTORY SETUP
-# =============================================================================
-
 def setup_directory(target: str) -> str:
     """
     Create the installation directory.
@@ -1307,7 +1265,6 @@ def setup_directory(target: str) -> str:
     Returns the resolved absolute path.
     """
     target = os.path.abspath(target)
-
     if os.path.exists(target):
         contents = [
             f for f in os.listdir(target)
@@ -1324,12 +1281,6 @@ def setup_directory(target: str) -> str:
 
     _ok(f"Directory   : {target}")
     return target
-
-
-# =============================================================================
-# STEP 4 — WRITE SOURCE FILES
-# =============================================================================
-
 def write_files(target: str) -> None:
     """
     Decode and write each embedded source file to the target directory.
@@ -1337,36 +1288,24 @@ def write_files(target: str) -> None:
     in the installer itself.
     """
     for filename, b64_chunks in FILES.items():
-        # b64_chunks may be a tuple of strings (chunked for readability)
-        # or a single string — normalise to one concatenated string
         if isinstance(b64_chunks, tuple):
             b64 = "".join(b64_chunks)
         else:
             b64 = b64_chunks
-
         raw  = base64.b64decode(b64)
         dest = os.path.join(target, filename)
-
         with open(dest, "wb") as f:
             f.write(raw)
-
         size_kb = len(raw) / 1024
         _ok(f"Wrote {filename:<16}  ({size_kb:.1f} KB)")
-
-
-# =============================================================================
-# STEP 5 — VERIFY IMPORTS
-# =============================================================================
-
 def verify_imports(target: str) -> None:
     """
     Import each module from the installation directory in dependency order.
     Uses importlib to load from the target path without modifying sys.path globally.
 
-    Import order matters — later modules depend on earlier ones:
+    Import order matters - later modules depend on earlier ones:
       constants → crypto → vault → tools → main
     """
-    # Temporarily prepend target to sys.path for this verification only
     sys.path.insert(0, target)
     try:
         import_order = ["constants", "crypto", "vault", "tools", "main"]
@@ -1385,27 +1324,20 @@ def verify_imports(target: str) -> None:
         sys.exit(1)
     finally:
         sys.path.pop(0)
-
-
-# =============================================================================
-# STEP 6 — CREATE LAUNCHER
-# =============================================================================
-
 def create_launcher(target: str, plat: dict) -> str:
     """
     Create a platform-appropriate launcher script in the target directory.
 
-    Windows : run.bat  — double-clickable or runnable from cmd/powershell
-    Unix    : run.sh   — executable shell script with shebang
+    Windows : run.bat  - double-clickable or runnable from cmd/powershell
+    Unix    : run.sh   - executable shell script with shebang
     """
     python_path = plat["python"]
-
     if plat["is_windows"]:
         launcher_name = "run.bat"
         launcher_path = os.path.join(target, launcher_name)
         content = textwrap.dedent(f"""
             @echo off
-            REM Password Manager — Windows launcher
+            REM Password Manager - Windows launcher
             REM Generated by install.py
             cd /d "%~dp0"
             "{python_path}" main.py %*
@@ -1414,14 +1346,10 @@ def create_launcher(target: str, plat: dict) -> str:
         with open(launcher_path, "w", newline="\r\n") as f:
             f.write(content)
         _ok(f"Created launcher : {launcher_name}  (double-click or run from cmd)")
-
     else:
         launcher_name = "run.sh"
         launcher_path = os.path.join(target, launcher_name)
         content = textwrap.dedent(f"""
-            #!/bin/sh
-            # Password Manager — Unix launcher
-            # Generated by install.py
             cd "$(dirname "$0")"
             exec "{python_path}" main.py "$@"
         """).lstrip()
@@ -1431,14 +1359,7 @@ def create_launcher(target: str, plat: dict) -> str:
         current_mode = os.stat(launcher_path).st_mode
         os.chmod(launcher_path, current_mode | 0o755)
         _ok(f"Created launcher : {launcher_name}  (chmod +x applied)")
-
     return launcher_path
-
-
-# =============================================================================
-# VERIFY MODE  (--check flag)
-# =============================================================================
-
 def run_check(target: str) -> None:
     """
     Verify an existing installation without writing any files.
@@ -1450,7 +1371,6 @@ def run_check(target: str) -> None:
     if not os.path.isdir(target):
         _err(f"Directory not found: {target}")
         sys.exit(1)
-
     expected = list(FILES.keys())
     all_ok   = True
 
@@ -1462,71 +1382,43 @@ def run_check(target: str) -> None:
         else:
             _err(f"{filename:<16}  MISSING")
             all_ok = False
-
     if not all_ok:
         _err("Installation is incomplete. Re-run install.py to fix.")
         sys.exit(1)
-
     print()
     _info("Verifying imports...")
     verify_imports(target)
-
     print()
     _ok("Installation is healthy.")
     _dim(f"Run with: python main.py   (from inside {target})")
-
-
-# =============================================================================
-# SUMMARY
-# =============================================================================
-
 def print_summary(target: str, plat: dict) -> None:
     """Print final usage instructions tailored to the user's OS."""
     _banner("INSTALLATION COMPLETE")
-
     python  = plat["python"]
     is_win  = plat["is_windows"]
     cd_cmd  = f'cd "{target}"'
     run_cmd = "run.bat" if is_win else "./run.sh"
     alt_cmd = f'"{python}" main.py'
-
     print(f"""
   {B}Installation directory:{R}
     {C}{target}{R}
-
   {B}Files installed:{R}""")
-
     for filename in FILES:
         size = os.path.getsize(os.path.join(target, filename))
         print(f"    {DM}{filename:<16}  {size:>7,} bytes{R}")
-
     print(f"""
   {B}How to run:{R}
-
     {C}{cd_cmd}{R}
     {C}{run_cmd}{R}
-
   {B}Or directly:{R}
-
     {C}{alt_cmd}{R}
-
   {B}To verify your installation later:{R}
-
     {C}python install.py --check{R}
     {C}python install.py --check /path/to/dir{R}
-
   {DM}No external libraries required. Pure Python stdlib only.{R}
 """)
-
-
-# =============================================================================
-# ENTRY POINT
-# =============================================================================
-
 TOTAL_STEPS = 6
 DEFAULT_DIR = "password-manager"
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Install the Password Manager (pure Python, no dependencies).",
@@ -1554,38 +1446,21 @@ def main() -> None:
 
     _banner("PASSWORD MANAGER INSTALLER")
     _dim(f"AES-256 · PBKDF2-SHA256 · HMAC-SHA256 · Zero external dependencies")
-
     if args.check:
         run_check(args.directory)
         return
-
-    # ── Step 1: Python version ────────────────────────────────────────────────
     _step(1, TOTAL_STEPS, "Checking Python version")
     check_python_version()
-
-    # ── Step 2: Platform detection ────────────────────────────────────────────
     _step(2, TOTAL_STEPS, "Detecting platform")
     plat = detect_platform()
-
-    # ── Step 3: Directory setup ───────────────────────────────────────────────
     _step(3, TOTAL_STEPS, "Setting up installation directory")
     target = setup_directory(args.directory)
-
-    # ── Step 4: Write files ───────────────────────────────────────────────────
     _step(4, TOTAL_STEPS, "Writing source files")
-    write_files(target)
-
-    # ── Step 5: Verify imports ────────────────────────────────────────────────
+    write_files(target)                                                                                                                                                                                                                                                  
     _step(5, TOTAL_STEPS, "Verifying imports")
     verify_imports(target)
-
-    # ── Step 6: Create launcher ───────────────────────────────────────────────
     _step(6, TOTAL_STEPS, "Creating launcher script")
     create_launcher(target, plat)
-
-    # ── Done ──────────────────────────────────────────────────────────────────
     print_summary(target, plat)
-
-
 if __name__ == "__main__":
     main()
