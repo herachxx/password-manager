@@ -411,12 +411,4 @@ None of these files ever contain a plaintext password, a key, or raw key materia
 
 ## License
 
-[MIT](LICENSE) © 2026
-
----
-
-<div align="center">
-
-*Built to be read, not just run.*
-
-</div>
+[MIT LICENSE © 2026](LICENSE)
