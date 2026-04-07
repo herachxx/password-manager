@@ -25,7 +25,7 @@ def save_vault(path: str, payload: dict, key: bytes) -> None:
 
     Args:
         path:    File path for the vault (e.g. "my.vault").
-        payload: Python dict — the decrypted vault contents.
+        payload: Python dict - the decrypted vault contents.
         key:     32-byte AES-256 key derived from master password.
     """
     plaintext = json.dumps(payload, separators=(",", ":")).encode("utf-8")
@@ -76,12 +76,12 @@ def load_vault(path: str, key: bytes) -> dict:
     version = raw[4]
     if version != VAULT_VERSION:
         raise VaultCorruptedError(f"Unsupported vault version: {version}")
-    salt       = raw[5:5+SALT_SIZE]                         # 32 bytes
-    iv         = raw[5+SALT_SIZE:5+SALT_SIZE+IV_SIZE]       # 16 bytes
-    data_len   = unpack_uint32(raw[5+SALT_SIZE+IV_SIZE:5+SALT_SIZE+IV_SIZE+4])  # 4 bytes
-    ct_start   = 5 + SALT_SIZE + IV_SIZE + 4
-    ct_end     = ct_start + data_len
-    auth_data  = raw[:ct_end]
+    salt = raw[5:5+SALT_SIZE]                         # 32 bytes
+    iv = raw[5+SALT_SIZE:5+SALT_SIZE+IV_SIZE]       # 16 bytes
+    data_len = unpack_uint32(raw[5+SALT_SIZE+IV_SIZE:5+SALT_SIZE+IV_SIZE+4])  # 4 bytes
+    ct_start = 5 + SALT_SIZE + IV_SIZE + 4
+    ct_end = ct_start + data_len
+    auth_data = raw[:ct_end]
     stored_mac = raw[ct_end:ct_end+HMAC_SIZE]
     if len(raw) != ct_end + HMAC_SIZE:
         raise VaultCorruptedError("Vault file has unexpected trailing bytes.")
