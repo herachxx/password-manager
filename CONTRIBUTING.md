@@ -1,6 +1,6 @@
 # Contributing
 
-Contributions are welcome. This project has a strong emphasis on code clarity and security correctness — please read this guide before submitting a pull request.
+Contributions are welcome. This project has a strong emphasis on code clarity and security correctness - please read this guide before submitting a pull request.
 
 ## Ground Rules
 
