@@ -171,7 +171,7 @@ class Session:
         self.last_activity = current_timestamp()
         self.locked       = False
     def touch(self) -> None:
-        """Update last activity timestamp — call before any user interaction."""
+        """Update last activity timestamp - call before any user interaction."""
         self.last_activity = current_timestamp()
     def check_timeout(self) -> None:
         """Raise SessionExpiredError if session has been idle too long."""
@@ -392,7 +392,7 @@ def _menu_hash_visualizer() -> None:
         warn("No text entered.")
         return
     try:
-        speed_choice = prompt("Animation speed — (1) Fast  (2) Normal  (3) Slow [2]: ")
+        speed_choice = prompt("Animation speed - (1) Fast  (2) Normal  (3) Slow: ")
         delays = {"1": 0.01, "2": 0.03, "3": 0.08}
         delay = delays.get(speed_choice, 0.03)
     except Exception:
