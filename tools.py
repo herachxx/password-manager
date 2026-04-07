@@ -159,7 +159,7 @@ def audit_vault(payload: dict) -> None:
     banner("VAULT SECURITY AUDIT")
     entries = list_entries(payload)
     if not entries:
-        info("Vault is empty — nothing to audit.")
+        info("Vault is empty - nothing to audit.")
         return
     print(f"  Scanning {len(entries)} entries...\n")
     issues_found = 0
@@ -201,9 +201,8 @@ def audit_vault(payload: dict) -> None:
         success("No issues found. Your vault is in excellent shape.")
     else:
         warn(f"{issues_found} issue(s) found. Review the warnings above.")
-# estimated hashes per second (conservative CPU estimates)
-SHA256_HASHES_PER_SEC = 100_000_000   # ~100M/s on a modern CPU (single core)
-PBKDF2_HASHES_PER_SEC = 1             # PBKDF2 600k iters ≈ 1 candidate/sec on CPU
+SHA256_HASHES_PER_SEC = 100_000_000
+PBKDF2_HASHES_PER_SEC = 1
 DEMO_WEAK_PASSWORDS = [
     "password", "123456", "admin", "letmein", "qwerty",
     "monkey", "dragon", "master", "sunshine", "welcome",
