@@ -1,4 +1,3 @@
-<div align="center">
 
 ```
 ██████╗  █████╗ ███████╗███████╗██╗    ██╗ ██████╗ ██████╗ ██████╗
@@ -9,7 +8,9 @@
 ╚═╝     ╚═╝  ╚═╝╚══════╝╚══════╝ ╚══╝╚══╝  ╚═════╝ ╚═╝  ╚═╝╚═════╝
 ```
 
-**A cryptographically serious CLI password manager — built in pure Python, from scratch, with zero dependencies.**
+<div align="center">
+
+**A cryptographically serious CLI password manager - built in pure Python, from scratch, with zero dependencies.**
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-22c55e?style=flat-square)](LICENSE)
@@ -25,13 +26,13 @@
 
 ## What Makes This Different
 
-Most password managers are black boxes. You trust that the library does the right thing, in the right order, with the right parameters — and you have no way to verify that it does.
+Most password managers are black boxes. You trust that the library does the right thing, in the right order, with the right parameters - and you have no way to verify that it does.
 
 This one is a glass box.
 
-Every cryptographic primitive — AES-256 block cipher, PBKDF2 key derivation, HMAC-SHA256 integrity check, PKCS#7 padding, SHA-256 compression — is implemented from first principles, in readable Python, with comments that explain not just *what* the code does but *why* each decision was made. You can read from `main.py` all the way down to the GF(2⁸) field arithmetic in `crypto.py` and understand every step of the pipeline.
+Every cryptographic primitive - AES-256 block cipher, PBKDF2 key derivation, HMAC-SHA256 integrity check, PKCS#7 padding, SHA-256 compression - is implemented from first principles, in readable Python, with comments that explain not just *what* the code does but *why* each decision was made. You can read from `main.py` all the way down to the GF(2⁸) field arithmetic in `crypto.py` and understand every step of the pipeline.
 
-**This is Part 1 of 2.** The GUI edition (Part 2, Tkinter) is in active development and will share this exact cryptographic core without modification — zero code duplication between editions.
+**This is Part 1 of 2.** The GUI edition (Part 2, Tkinter) is in active development and will share this exact cryptographic core without modification - zero code duplication between editions.
 
 ---
 
