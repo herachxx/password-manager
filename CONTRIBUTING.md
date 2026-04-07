@@ -15,8 +15,8 @@ Contributions are welcome. This project has a strong emphasis on code clarity an
 ```bash
 git clone https://github.com/yourusername/password-manager.git
 cd password-manager
-python main.py          # run the app
-python install.py --check   # verify everything imports
+python main.py
+python install.py --check
 ```
 
 No virtual environment or package installation required.
@@ -44,7 +44,6 @@ Features that are always welcome:
 - Improvements to the installer
 
 Features that are out of scope:
-- Cloud sync or network features
 - External library dependencies
 - GUI features (those belong in Part 2)
 
