@@ -409,6 +409,6 @@ None of these files ever contain a plaintext password, a key, or raw key materia
 
 ---
 
-## License
+## LICENSE
 
 [MIT LICENSE © 2026](LICENSE)
