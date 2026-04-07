@@ -25,7 +25,6 @@ from tools import (
     interactive_generator, audit_vault, run_bruteforce_simulator,
     password_entropy, print_password_stats
 )
-# LOCKOUT MANAGEMENT
 def _read_lockout() -> tuple[int, int]:
     """
     Read the lockout state from the hidden lockout file.
@@ -154,7 +153,6 @@ def login_flow(vault_path: str) -> tuple[bytearray, dict]:
     except Exception:
         _record_failed_attempt()
         log_event("LOGIN_FAILED", "Key derivation mismatch")
-        # Raise generic AuthenticationError — never leak which check failed
         raise AuthenticationError("Incorrect master password.")
     _clear_lockout()
     log_event("LOGIN_SUCCESS")
