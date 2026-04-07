@@ -10,7 +10,7 @@
 
 <div align="center">
 
-**A cryptographically serious CLI password manager - built in pure Python, from scratch, with zero dependencies.**
+**CLI password manager**
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-22c55e?style=flat-square)](LICENSE)
@@ -45,9 +45,9 @@ Every cryptographic primitive - AES-256 block cipher, PBKDF2 key derivation, HMA
 | **HMAC-SHA256** | `hmac` stdlib | RFC 2104 | Vault integrity & tamper detection |
 | **PKCS#7** | From scratch | RFC 5652 | AES block padding |
 | **SHA-256** | From scratch | FIPS 180-4 | Visualizer & learning tool |
-| **CSPRNG** | `os.urandom()` | OS-provided | All randomness — keys, salts, IVs |
+| **CSPRNG** | `os.urandom()` | OS-provided | All randomness - keys, salts, IVs |
 
-> **600,000 PBKDF2 iterations** — the NIST SP 800-132 (2023) minimum. Each wrong master password guess costs an attacker ~0.6 seconds of CPU time. The bruteforce simulator built into the app shows exactly what that means in practice.
+> **600,000 PBKDF2 iterations** - the NIST SP 800-132 (2023) minimum. Each wrong master password guess costs an attacker ~0.6 seconds of CPU time. The bruteforce simulator built into the app shows exactly what that means in practice.
 
 ---
 
@@ -62,7 +62,7 @@ password-manager/
 ├── tools.py       ← Password generator · security auditor · bruteforce sim
 ├── constants.py   ← Constants · exceptions · terminal helpers
 │
-└── install.py     ← Self-contained installer · zero pip · cross-platform
+└── install.py     ← just run this to install all the files above
 ```
 
 **The layers never bleed into each other.** `crypto.py` has no knowledge of the UI. `vault.py` has no knowledge of menus or sessions. `main.py` never touches raw bytes. This clean separation is why the GUI version can drop in the same core unchanged.
@@ -71,33 +71,33 @@ password-manager/
 
 ## Vault File Format
 
-Every `.vault` file is a custom binary format designed from the ground up. No third-party container, no SQLite, no XML — a tight, versioned binary layout with a cryptographic integrity seal:
+Every `.vault` file is a custom binary format designed from the ground up. No third-party container, no SQLite, no XML - a tight, versioned binary layout with a cryptographic integrity seal:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │  Offset   Size   Field                                              │
-│  ──────   ────   ────────────────────────────────────────────────  │
+│  ──────   ────   ────────────────────────────────────────────────   │
 │    0        4    Magic bytes      b"PVLT"                           │
 │    4        1    Version          0x01                              │
 │    5       32    Salt             random, fixed at vault creation   │
 │   37       16    IV               random, regenerated on every save │
 │   53        4    Ciphertext len   uint32, big-endian                │
 │   57        N    Ciphertext       AES-256-CBC encrypted JSON        │
-│  57+N      32    HMAC-SHA256      over bytes [0 .. 57+N−1]         │
+│  57+N      32    HMAC-SHA256      over bytes [0 .. 57+N−1]          │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
 Three design decisions worth calling out:
 
-- **The salt never changes.** Generated once at vault creation and stored in plaintext — this is correct. Salt is not a secret; it just needs to be unique per vault. Changing it would silently invalidate the derived key.
+- **The salt never changes.** Generated once at vault creation and stored in plaintext - this is correct. Salt is not a secret; it just needs to be unique per vault. Changing it would silently invalidate the derived key.
 - **The IV is regenerated on every save.** IV reuse with the same key in CBC mode allows an attacker to XOR two ciphertexts and cancel the keystream, potentially leaking plaintext structure. The architecture makes reuse impossible.
-- **HMAC is verified before decryption.** Not after — *before*. Decrypting unauthenticated ciphertext and checking integrity afterwards (Decrypt-then-MAC) opens a padding oracle attack surface. The vault refuses to pass a single byte to the AES decryptor until the HMAC is confirmed valid.
+- **HMAC is verified before decryption.** Not after - *before*. Decrypting unauthenticated ciphertext and checking integrity afterwards (Decrypt-then-MAC) opens a padding oracle attack surface. The vault refuses to pass a single byte to the AES decryptor until the HMAC is confirmed valid.
 
 ---
 
 ## Installation
 
-### Option A — Single-file installer *(recommended)*
+### Option A - Single-file installer *(recommended)*
 
 Download only `install.py`. It contains all five source files embedded as base64 and bootstraps the entire project without touching pip, virtualenvs, or your system Python packages:
 
@@ -146,7 +146,7 @@ python install.py --check
 python install.py --check ~/apps/my-vault
 ```
 
-### Option B — Git clone
+### Option B - Git clone
 
 ```bash
 git clone https://github.com/yourusername/password-manager.git
@@ -156,15 +156,15 @@ python main.py
 
 ### Requirements
 
-- **Python 3.10+** — no exceptions (uses structural type hints and union type syntax)
-- **No external libraries** — if it is not in the Python standard library, it is not in this project
+- **Python 3.10+** - no exceptions (uses structural type hints and union type syntax)
+- **No external libraries** - if it is not in the Python standard library, it is not in this project
 
 ---
 
 ## Usage
 
 ```bash
-# Default vault — creates my.vault in the current directory
+# Default vault - creates my.vault in the current directory
 python main.py
 
 # Named vault in a custom location
@@ -173,7 +173,7 @@ python main.py ~/secure/personal.vault
 python main.py "C:\Users\you\Documents\vault.vault"
 ```
 
-On first run you create a master password. The vault is encrypted and written to disk immediately. On every subsequent run, enter your master password to unlock it — each incorrect attempt triggers a full PBKDF2 derivation, so brute-forcing via the login prompt is computationally expensive by design.
+On first run you create a master password. The vault is encrypted and written to disk immediately. On every subsequent run, enter your master password to unlock it - each incorrect attempt triggers a full PBKDF2 derivation, so brute-forcing via the login prompt is computationally expensive by design.
 
 ### Main Menu
 
@@ -205,7 +205,7 @@ On first run you create a master password. The vault is encrypted and written to
 
 ## Feature Showcase
 
-### 🔐 Add an Entry
+### Add an Entry
 
 ```
   ────────────────────────────────────────────────────────────────────────
@@ -228,7 +228,7 @@ On first run you create a master password. The vault is encrypted and written to
   ✔  Entry [3] saved for github.com.
 ```
 
-### 🔍 Security Auditor
+### Security Auditor
 
 ```
   ────────────────────────────────────────────────────────────────────────
@@ -240,17 +240,17 @@ On first run you create a master password. The vault is encrypted and written to
   ⚠  Same password used across: twitter.com, instagram.com
 
   [ CHECK 2 ] PASSWORD AGE (>90 days)
-  ⚠  facebook.com (alice@example.com) — last changed: 2024-08-12 14:33 UTC
-  ⚠  amazon.com (alice@example.com)   — last changed: 2024-07-01 09:17 UTC
+  ⚠  facebook.com (alice@example.com) - last changed: 2024-08-12 14:33 UTC
+  ⚠  amazon.com (alice@example.com)   - last changed: 2024-07-01 09:17 UTC
 
   [ CHECK 3 ] PASSWORD STRENGTH
-  ⚠  reddit.com (alice@example.com) — Fair (44 bits)
+  ⚠  reddit.com (alice@example.com) - Fair (44 bits)
 
   Audit complete.
   ⚠  4 issue(s) found. Review the warnings above.
 ```
 
-### 💥 Bruteforce Simulator
+### Bruteforce Simulator
 
 ```
   ────────────────────────────────────────────────────────────────────────
@@ -275,7 +275,7 @@ On first run you create a master password. The vault is encrypted and written to
 
 ## SHA-256 Visualizer
 
-Select **[9]** from the main menu to watch SHA-256 compute a digest in real time — every step of the FIPS 180-4 algorithm made visible:
+Select **[9]** from the main menu to watch SHA-256 compute a digest in real time - every step of the FIPS 180-4 algorithm made visible:
 
 ```
   SHA-256 VISUALIZATION
@@ -298,7 +298,7 @@ Select **[9]** from the main menu to watch SHA-256 compute a digest in real time
   W[0..15] = block words. W[16..63] = sigma expansions.
     W[00]=68656C6C  W[01]=6F800000  W[02]=00000000  ...
 
-  [ STEP 3 ] COMPRESSION — 64 ROUNDS
+  [ STEP 3 ] COMPRESSION - 64 ROUNDS
   Watching working variables (a..h) evolve each round.
 
    Rnd           a           b           c           d           e  ...
@@ -328,25 +328,25 @@ The output is verified against `hashlib.sha256` on every run. If they ever disag
 
 Transparency. When you call `cryptography.hazmat.primitives.ciphers.Cipher(algorithms.AES(key), modes.CBC(iv))`, you are trusting that PyCA implemented AES correctly, that the mode is wired correctly, that padding is handled correctly, and that your installed version has no known vulnerabilities. All of that trust is invisible.
 
-This project implements every AES operation in readable Python — the S-box lookup, the GF(2⁸) field arithmetic in MixColumns, the key schedule expansion, all 14 rounds of the cipher. A reviewer can read `crypto.py` from top to bottom and verify every step against FIPS 197 directly. The tradeoff is performance; the gain is complete auditability.
+This project implements every AES operation in readable Python - the S-box lookup, the GF(2⁸) field arithmetic in MixColumns, the key schedule expansion, all 14 rounds of the cipher. A reviewer can read `crypto.py` from top to bottom and verify every step against FIPS 197 directly. The tradeoff is performance; the gain is complete auditability.
 
 ### Why PBKDF2 at 600,000 iterations?
 
 NIST Special Publication 800-132 (2023) specifies 600,000 as the minimum iteration count for PBKDF2-HMAC-SHA256 used for password hashing. This is calibrated so that a single password guess costs approximately 0.6 seconds of CPU time on contemporary hardware.
 
-The practical consequence: an attacker with one million candidate passwords needs ~7 days of single-core CPU time to exhaust them. PBKDF2 also resists GPU acceleration — SHA-256 runs at ~10 billion hashes/second on a high-end GPU cluster, but PBKDF2's serial dependency chain does not parallelize effectively, limiting GPU advantage to roughly 10,000× rather than the 100,000× you'd see with a bare hash.
+The practical consequence: an attacker with one million candidate passwords needs ~7 days of single-core CPU time to exhaust them. PBKDF2 also resists GPU acceleration - SHA-256 runs at ~10 billion hashes/second on a high-end GPU cluster, but PBKDF2's serial dependency chain does not parallelize effectively, limiting GPU advantage to roughly 10,000× rather than the 100,000× you'd see with a bare hash.
 
 ### Why verify the HMAC before decrypting?
 
 This is the most subtle security decision in the codebase.
 
-A **padding oracle attack** works by sending a modified ciphertext to the decryptor and observing whether it returns a "wrong padding" error or a "wrong data" error. Those two error types reveal a single bit of information — and with enough queries, that single bit is sufficient to recover the entire plaintext without ever knowing the key.
+A **padding oracle attack** works by sending a modified ciphertext to the decryptor and observing whether it returns a "wrong padding" error or a "wrong data" error. Those two error types reveal a single bit of information - and with enough queries, that single bit is sufficient to recover the entire plaintext without ever knowing the key.
 
 The defense is authentication before decryption. If the HMAC over the ciphertext is verified first, any modified ciphertext is rejected before the padding check runs. No padding information leaks because the decryptor is never reached. `load_vault()` enforces this strictly: the HMAC check runs first, and `aes_decrypt_cbc()` is only called if the HMAC is valid. The order is a security requirement, not a convention.
 
 ### Why rejection sampling in the password generator?
 
-Consider generating a random character from a 95-character charset using a random byte. The naive approach — `charset[byte % 95]` — has a bias problem: 256 is not evenly divisible by 95. The first 66 characters of the charset appear in the mapping three times while the remaining 29 appear only twice, making them ~50% more likely to appear in generated passwords.
+Consider generating a random character from a 95-character charset using a random byte. The naive approach - `charset[byte % 95]` - has a bias problem: 256 is not evenly divisible by 95. The first 66 characters of the charset appear in the mapping three times while the remaining 29 appear only twice, making them ~50% more likely to appear in generated passwords.
 
 The fix is rejection sampling: any byte ≥ `256 - (256 % charset_size)` is discarded and a new byte is drawn. The accepted range is exactly divisible by the charset size, giving a perfectly uniform distribution. The expected overhead is less than 0.1 extra bytes drawn per character.
 
@@ -354,7 +354,7 @@ The fix is rejection sampling: any byte ≥ `256 - (256 % charset_size)` is disc
 
 Python's garbage collector reclaims memory at an unspecified time and does not zero it before returning it to the allocator. A `bytes` object holding your AES key could persist in memory for seconds, minutes, or indefinitely after you `del` it.
 
-The session key is stored in a `bytearray` (mutable, unlike `bytes`) and explicitly overwritten byte-by-byte with zeros before the reference is released. This happens in `zero_bytes()` → called by `Session.lock()` and `Session.close()`. After zeroing, a memory dump of the Python process finds zeros where the key was, not key material. This is best-effort — not a guarantee against swap, CPU caches, or allocator internals — but it reduces the key exposure window significantly compared to doing nothing.
+The session key is stored in a `bytearray` (mutable, unlike `bytes`) and explicitly overwritten byte-by-byte with zeros before the reference is released. This happens in `zero_bytes()` → called by `Session.lock()` and `Session.close()`. After zeroing, a memory dump of the Python process finds zeros where the key was, not key material. This is best-effort - not a guarantee against swap, CPU caches, or allocator internals - but it reduces the key exposure window significantly compared to doing nothing.
 
 ---
 
@@ -362,9 +362,9 @@ The session key is stored in a `bytearray` (mutable, unlike `bytes`) and explici
 
 | File | Contents | Safe to back up? |
 |---|---|---|
-| `my.vault` | AES-256-CBC encrypted credential database | ✅ Yes — useless without the master password |
-| `.audit.log` | Timestamped log: logins, saves, lockouts | ✅ Yes — metadata only, no passwords |
-| `.lockout` | Failed attempt count and last-attempt timestamp | No — local state only |
+| `my.vault` | AES-256-CBC encrypted credential database | ✅ Yes - useless without the master password |
+| `.audit.log` | Timestamped log: logins, saves, lockouts | ✅ Yes - metadata only, no passwords |
+| `.lockout` | Failed attempt count and last-attempt timestamp | No - local state only |
 
 **Back up your `.vault` file.** It is the only copy of your credentials. If it is lost, there is no recovery. The encryption is strong enough that a stolen vault file is useless to an attacker without the master password.
 
@@ -376,7 +376,7 @@ None of these files ever contain a plaintext password, a key, or raw key materia
 
 | Limitation | Detail |
 |---|---|
-| **Single-device** | No sync, no cloud, no sharing — the vault file lives on one machine |
+| **Single-device** | No sync, no cloud, no sharing - the vault file lives on one machine |
 | **No password recovery** | Forgotten master password = locked vault, permanently. No backdoor, no recovery email, no security questions. |
 | **Not side-channel hardened** | Python integers are not constant-time at the CPU level. This implementation is educational, not hardened against cache-timing or power analysis. |
 | **No GUI** | CLI only in this edition. Part 2 (Tkinter) is in development. |
@@ -387,7 +387,7 @@ None of these files ever contain a plaintext password, a key, or raw key materia
 
 - [x] CLI edition with full cryptographic core
 - [x] Self-contained cross-platform installer (`install.py`)
-- [ ] **Part 2: GUI** — Tkinter wrapper, same crypto/vault core, zero code duplication
+- [ ] **Part 2: GUI** - Tkinter wrapper, same crypto/vault core, zero code duplication
 - [ ] Vault export to encrypted CSV / JSON
 - [ ] Vault backup with automatic versioning
 - [ ] TOTP (2FA code) generation and display
@@ -400,8 +400,8 @@ None of these files ever contain a plaintext password, a key, or raw key materia
 
 | Document | Relevance |
 |---|---|
-| [FIPS 197](https://csrc.nist.gov/publications/detail/fips/197/final) | AES specification — implemented in `crypto.py` |
-| [FIPS 180-4](https://csrc.nist.gov/publications/detail/fips/180/4/final) | SHA-256 specification — visualized in `crypto.py` |
+| [FIPS 197](https://csrc.nist.gov/publications/detail/fips/197/final) | AES specification - implemented in `crypto.py` |
+| [FIPS 180-4](https://csrc.nist.gov/publications/detail/fips/180/4/final) | SHA-256 specification - visualized in `crypto.py` |
 | [NIST SP 800-132](https://csrc.nist.gov/publications/detail/sp/800-132/final) | PBKDF2 iteration count recommendation |
 | [RFC 2898](https://www.rfc-editor.org/rfc/rfc2898) | PKCS #5: PBKDF2 specification |
 | [RFC 2104](https://www.rfc-editor.org/rfc/rfc2104) | HMAC specification |
@@ -411,7 +411,7 @@ None of these files ever contain a plaintext password, a key, or raw key materia
 
 ## License
 
-[MIT](LICENSE) © 2025
+[MIT](LICENSE) © 2026
 
 ---
 
