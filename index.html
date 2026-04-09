@@ -1,0 +1,1442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PassWord — The Glass Box Password Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet"/>
+
+<style>
+/* ═══════════════════════════════════════════════════════
+   AUTO-SCALING ROOT
+   Base font scales smoothly:  13px @ 360px → 16px @ 1280px → 20px @ 2560px
+   All layout uses em units so everything scales proportionally.
+═══════════════════════════════════════════════════════ */
+html {
+  font-size: clamp(13px, 0.9vw + 9.5px, 22px);
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --cream:   #F5F0E8;
+  --white:   #FAFAF7;
+  --ink:     #0E0E0E;
+  --ink2:    #1A1A1A;
+  --mid:     #6B6B6B;
+  --muted:   #A8A8A0;
+  --border:  #DDDDD5;
+  --accent:  #D4380D;
+  --green:   #1A3A2A;
+  --mono:    'DM Mono', monospace;
+  --serif:   'Instrument Serif', serif;
+  --disp:    'Bebas Neue', sans-serif;
+  /* Nav height as em so it scales too */
+  --nav-h:   3.75em;
+}
+
+body {
+  background: var(--white);
+  color: var(--ink);
+  font-family: var(--mono);
+  overflow-x: hidden;
+  cursor: none;
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: var(--cream); }
+::-webkit-scrollbar-thumb { background: var(--ink); }
+
+/* ═══════════════════════════════════════════════════════
+   CURSOR — always visible on any background
+   Strategy: mix-blend-mode:difference on the outer ring
+   means it inverts whatever colour sits beneath it,
+   so it's always perceptually visible (white on dark,
+   dark on light). The inner dot uses the same trick.
+   No JS class-toggling needed for colour — the blend
+   mode handles it automatically.
+═══════════════════════════════════════════════════════ */
+#cur-ring {
+  position: fixed;
+  width:  2.25em;   /* scales with root font */
+  height: 2.25em;
+  border-radius: 50%;
+  /* White ring — difference blend turns it dark on light bg, light on dark bg */
+  border: 1.5px solid #fff;
+  background: transparent;
+  pointer-events: none;
+  z-index: 9999;
+  transform: translate(-50%, -50%);
+  mix-blend-mode: difference;
+  will-change: left, top, width, height;
+  transition:
+    width  0.28s cubic-bezier(.25,.46,.45,.94),
+    height 0.28s cubic-bezier(.25,.46,.45,.94),
+    opacity 0.2s;
+}
+
+#cur-dot {
+  position: fixed;
+  width:  0.5em;
+  height: 0.5em;
+  border-radius: 50%;
+  /* White dot — difference blend inverts on the fly */
+  background: #fff;
+  pointer-events: none;
+  z-index: 10000;
+  transform: translate(-50%, -50%);
+  mix-blend-mode: difference;
+  will-change: left, top;
+  transition: width 0.12s, height 0.12s;
+}
+
+/* Expand ring on hover */
+body.hov #cur-ring { width: 3.5em; height: 3.5em; }
+body.hov #cur-dot  { width: 0.35em; height: 0.35em; }
+
+/* ═══════════════════════════════════════════════════════
+   NAV
+═══════════════════════════════════════════════════════ */
+nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 500;
+  padding: 0 clamp(1.5em, 4vw, 4em);
+  height: var(--nav-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(250, 250, 247, 0.93);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border);
+}
+
+.nav-logo {
+  font-family: var(--disp);
+  font-size: 1.4em;
+  letter-spacing: .06em;
+  color: var(--ink);
+  text-decoration: none;
+}
+.nav-logo span { color: var(--accent); }
+
+.nav-links {
+  display: flex;
+  gap: clamp(1em, 2.5vw, 2.5em);
+  list-style: none;
+  align-items: center;
+}
+.nav-links a {
+  font-family: var(--mono);
+  font-size: .68em;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--mid);
+  text-decoration: none;
+  transition: color .2s;
+}
+.nav-links a:hover { color: var(--ink); }
+.nav-cta {
+  color: var(--white) !important;
+  background: var(--ink);
+  padding: .5em 1.4em;
+  transition: background .2s !important;
+}
+.nav-cta:hover { background: var(--accent) !important; }
+
+.nav-ham {
+  display: none;
+  background: none;
+  border: none;
+  cursor: none;
+  flex-direction: column;
+  gap: 5px;
+  padding: .25em;
+}
+.nav-ham span {
+  display: block;
+  width: 1.375em;
+  height: 1.5px;
+  background: var(--ink);
+  transition: all .3s;
+}
+
+/* ═══════════════════════════════════════════════════════
+   MOBILE MENU
+═══════════════════════════════════════════════════════ */
+.mob-menu {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: var(--ink);
+  z-index: 490;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 1.6em;
+}
+.mob-menu.open { display: flex; }
+.mob-menu a {
+  font-family: var(--disp);
+  font-size: clamp(2em, 8vw, 3.5em);
+  color: var(--white);
+  text-decoration: none;
+  letter-spacing: .05em;
+  transition: color .2s;
+}
+.mob-menu a:hover { color: var(--accent); }
+.mob-close {
+  position: absolute;
+  top: 1.1em;
+  right: clamp(1.5em, 4vw, 4em);
+  font-family: var(--mono);
+  font-size: .72em;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.35);
+  background: none;
+  border: none;
+  cursor: none;
+}
+
+/* ═══════════════════════════════════════════════════════
+   HERO
+═══════════════════════════════════════════════════════ */
+#hero {
+  min-height: 100svh;
+  padding: var(--nav-h) clamp(1.5em, 4vw, 4em) 0;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  background: var(--cream);
+  overflow: hidden;
+}
+.hero-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: clamp(3em, 6vh, 6em) 0 2em;
+}
+.hero-eyebrow {
+  font-size: .65em;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--mid);
+  margin-bottom: 1.8em;
+  display: flex;
+  align-items: center;
+  gap: 1em;
+  opacity: 0;
+  animation: fadeUp .8s ease .1s forwards;
+}
+.hero-eyebrow::before {
+  content: '';
+  display: inline-block;
+  width: 1.75em;
+  height: 1px;
+  background: var(--muted);
+}
+.hero-h1 {
+  font-family: var(--disp);
+  font-size: clamp(5em, 17vw, 19em);
+  line-height: .87;
+  letter-spacing: -.01em;
+  opacity: 0;
+  animation: fadeUp .9s ease .2s forwards;
+}
+.hero-h1 .red { color: var(--accent); }
+
+.hero-bottom {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: end;
+  gap: 2em;
+  padding: clamp(2em, 4vh, 4em) 0 clamp(2.5em, 5vh, 5em);
+  border-top: 1px solid var(--border);
+  opacity: 0;
+  animation: fadeUp .9s ease .5s forwards;
+}
+.hero-desc {
+  font-size: clamp(.82em, 1.1vw, .95em);
+  line-height: 1.8;
+  color: var(--mid);
+  max-width: 27.5em;
+}
+.hero-actions {
+  display: flex;
+  gap: 1em;
+  justify-content: flex-end;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+/* ─ Buttons ─ */
+.btn {
+  font-family: var(--mono);
+  font-size: .7em;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  padding: .85em 2em;
+  text-decoration: none;
+  transition: all .2s;
+  display: inline-block;
+}
+.btn-dark { background: var(--ink); color: var(--white); }
+.btn-dark:hover { background: var(--accent); }
+.btn-out  { background: transparent; color: var(--ink); border: 1px solid var(--ink); }
+.btn-out:hover { background: var(--ink); color: var(--white); }
+
+/* ─ Ticker ─ */
+.ticker-wrap {
+  overflow: hidden;
+  height: 2.625em;
+  display: flex;
+  align-items: center;
+  background: var(--ink);
+  border-top: 1px solid rgba(255,255,255,.06);
+}
+.ticker-track {
+  display: flex;
+  animation: ticker 30s linear infinite;
+  white-space: nowrap;
+}
+.t-it {
+  font-family: var(--disp);
+  font-size: .95em;
+  letter-spacing: .15em;
+  color: rgba(255,255,255,.4);
+  padding: 0 2.2em;
+  flex-shrink: 0;
+}
+.t-it.hl { color: var(--accent); opacity: 1; }
+
+/* ═══════════════════════════════════════════════════════
+   SHARED LAYOUT
+═══════════════════════════════════════════════════════ */
+.c {
+  max-width: 81.25em; /* 1300px equivalent */
+  margin: 0 auto;
+  padding: 0 clamp(1.5em, 4vw, 4em);
+}
+
+.eyebrow {
+  font-size: .63em;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: .75em;
+  margin-bottom: 1.4em;
+}
+.eyebrow::before {
+  content: '';
+  display: inline-block;
+  width: 1.375em;
+  height: 1px;
+  background: var(--muted);
+}
+
+.s-title {
+  font-family: var(--disp);
+  font-size: clamp(3em, 7vw, 7em);
+  line-height: .92;
+  letter-spacing: .01em;
+}
+.body-txt { font-size: .85em; line-height: 1.8; color: var(--mid); }
+
+/* ─ Scroll reveal ─ */
+.rv  { opacity: 0; transform: translateY(2.375em); transition: opacity .8s ease, transform .8s ease; }
+.rv.in { opacity: 1; transform: none; }
+.rl  { opacity: 0; transform: translateX(-2.375em); transition: opacity .8s ease, transform .8s ease; }
+.rl.in { opacity: 1; transform: none; }
+
+/* ═══════════════════════════════════════════════════════
+   MANIFESTO
+═══════════════════════════════════════════════════════ */
+#mani { padding: clamp(5em, 10vh, 10em) 0; background: var(--white); }
+.mani-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(2em, 5vw, 6em);
+  align-items: center;
+}
+.mani-big {
+  font-family: var(--disp);
+  font-size: clamp(4em, 9vw, 10em);
+  line-height: .9;
+  letter-spacing: .01em;
+}
+.mani-big .stroke { -webkit-text-stroke: 1.5px var(--ink); color: transparent; }
+.mani-r  { display: flex; flex-direction: column; gap: 2.2em; }
+.mani-quote {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: clamp(1.1em, 2vw, 1.6em);
+  line-height: 1.55;
+  color: var(--ink2);
+  border-left: 2px solid var(--accent);
+  padding-left: 1.5em;
+}
+
+/* ═══════════════════════════════════════════════════════
+   STATS
+═══════════════════════════════════════════════════════ */
+#stats { background: var(--ink); padding: clamp(3em, 6vh, 5em) 0; }
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+.stat-it {
+  padding: 0 clamp(1.5em, 3vw, 3em);
+  border-right: 1px solid rgba(255,255,255,.1);
+}
+.stat-it:first-child { padding-left: 0; }
+.stat-it:last-child  { border-right: none; }
+.s-num {
+  font-family: var(--disp);
+  font-size: clamp(2.8em, 5vw, 5em);
+  color: var(--white);
+  line-height: 1;
+  display: block;
+}
+.s-num .a { color: var(--accent); }
+.s-lbl {
+  font-size: .62em;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.35);
+  display: block;
+  margin-top: .5em;
+}
+
+/* ═══════════════════════════════════════════════════════
+   TERMINAL
+═══════════════════════════════════════════════════════ */
+#trm { padding: clamp(5em, 10vh, 10em) 0; background: var(--cream); }
+.trm-lay {
+  display: grid;
+  grid-template-columns: 1fr 1.45fr;
+  gap: clamp(2.5em, 5vw, 6em);
+  align-items: start;
+}
+.trm-copy { padding-top: 2em; }
+.trm-tabs { display: flex; flex-direction: column; margin-top: 2.5em; }
+.ttab {
+  background: none;
+  border: none;
+  border-top: 1px solid var(--border);
+  padding: 1em 0;
+  text-align: left;
+  font-family: var(--mono);
+  font-size: .7em;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  cursor: none;
+  transition: all .2s;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.ttab:last-child { border-bottom: 1px solid var(--border); }
+.ttab::after { content: '+'; font-size: 1.1em; transition: transform .3s; }
+.ttab.on::after { transform: rotate(45deg); color: var(--accent); }
+.ttab.on, .ttab:hover { color: var(--ink); }
+
+.trm-win {
+  background: var(--ink2);
+  box-shadow: 0 2.5em 5em rgba(0,0,0,.2);
+  position: sticky;
+  top: calc(var(--nav-h) + 1em);
+}
+.tbar {
+  background: #2a2a2a;
+  padding: .85em 1.2em;
+  display: flex;
+  align-items: center;
+  gap: .5em;
+}
+.td { width: .625em; height: .625em; border-radius: 50%; }
+.td.r { background: #FF5F57; } .td.y { background: #FFBD2E; } .td.g { background: #28C840; }
+.t-ttl {
+  font-family: var(--mono);
+  font-size: .62em;
+  color: rgba(255,255,255,.25);
+  margin: 0 auto;
+  letter-spacing: .08em;
+}
+.tbody {
+  padding: 1.5em;
+  font-family: var(--mono);
+  font-size: clamp(.6em, 1vw, .76em);
+  line-height: 1.9;
+  min-height: 21.25em;
+  color: rgba(255,255,255,.65);
+  overflow-x: auto;
+}
+.tp  { display: none; }
+.tp.on { display: block; }
+
+/* Syntax colours */
+.tc  { color: #6A9955; }  /* comment */
+.tkw { color: #569CD6; }  /* keyword/prompt */
+.ts  { color: #CE9178; }  /* string */
+.tg  { color: #4EC9B0; }  /* success */
+.tw  { color: #DCDCAA; }  /* warn */
+.tr_ { color: #F44747; }  /* error */
+.tb_ { color: #9CDCFE; }  /* info */
+.th_ { color: #fff; font-weight: 500; }
+
+@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
+
+/* ═══════════════════════════════════════════════════════
+   VAULT FORMAT
+═══════════════════════════════════════════════════════ */
+#vlt { padding: clamp(5em, 10vh, 10em) 0; background: var(--white); }
+.vlt-lay {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr;
+  gap: clamp(2.5em, 5vw, 7em);
+  align-items: center;
+}
+.vlt-tbl { border: 1px solid var(--border); overflow: hidden; }
+.vr {
+  display: grid;
+  grid-template-columns: 4.5em 3.5em 1fr;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: .72em;
+}
+.vr:last-child { border-bottom: none; }
+.vc { padding: .75em 1em; border-right: 1px solid var(--border); line-height: 1.5; }
+.vc:last-child { border-right: none; }
+.vr.hd .vc {
+  background: var(--cream);
+  color: var(--muted);
+  font-size: .6em;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.vr .vc:first-child { color: var(--muted); }
+.vr .vc:nth-child(2) { color: var(--green); font-weight: 500; }
+.v-magic .vc:last-child { color: var(--accent); font-weight: 500; }
+.v-iv    .vc:last-child { color: #B45309; }
+.v-hmac  .vc:last-child { color: var(--accent); }
+.v-ct    .vc:last-child { color: var(--green); }
+.vnote {
+  background: var(--cream);
+  border-left: 2px solid var(--accent);
+  padding: 1.1em 1.4em;
+  margin-top: 1.5em;
+  font-size: .76em;
+  line-height: 1.7;
+  color: var(--mid);
+}
+.vnote strong { color: var(--ink); }
+
+/* ═══════════════════════════════════════════════════════
+   CRYPTO STACK
+═══════════════════════════════════════════════════════ */
+#cryp { background: var(--ink); padding: clamp(5em, 10vh, 10em) 0; overflow: hidden; }
+.cryp-hd {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(2em, 4vw, 5em);
+  align-items: end;
+  margin-bottom: clamp(3em, 6vh, 5em);
+}
+.cryp-title {
+  font-family: var(--disp);
+  font-size: clamp(3.5em, 7vw, 8em);
+  line-height: .9;
+  color: var(--white);
+}
+.cryp-title .stroke { -webkit-text-stroke: 1px rgba(255,255,255,.25); color: transparent; }
+.cryp-desc { font-size: .8em; line-height: 1.8; color: rgba(255,255,255,.4); padding-bottom: .5em; }
+.cryp-rows { border-top: 1px solid rgba(255,255,255,.08); }
+.crow {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.2fr 1.4fr;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  transition: background .2s;
+}
+.crow:hover { background: rgba(255,255,255,.03); }
+.crow.hd .cc {
+  font-size: .58em;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.22);
+  padding-bottom: .9em;
+}
+.cc {
+  padding: 1em 1.5em 1em 0;
+  font-family: var(--mono);
+  font-size: .74em;
+  line-height: 1.5;
+  color: rgba(255,255,255,.5);
+}
+.cc.nm { color: var(--white); font-weight: 500; }
+.cc.im { color: #4EC9B0; }
+.cc.st { color: rgba(255,255,255,.28); font-size: .67em; }
+.cc.pu { color: rgba(255,255,255,.42); }
+.chip {
+  display: inline-block;
+  font-size: .56em;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: .18em .55em;
+  border-radius: 99px;
+  margin-left: .4em;
+  vertical-align: middle;
+}
+.chs { background: rgba(212,56,13,.2);   color: #F97316; }
+.chl { background: rgba(78,201,176,.15); color: #4EC9B0; }
+
+/* ═══════════════════════════════════════════════════════
+   FEATURES
+═══════════════════════════════════════════════════════ */
+#feat { padding: clamp(5em, 10vh, 10em) 0; background: var(--cream); }
+.feat-top {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2em;
+  align-items: end;
+  margin-bottom: clamp(3em, 6vh, 5em);
+}
+.feat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+  border: 1px solid var(--border);
+}
+.fc {
+  padding: clamp(1.5em, 3vw, 2.5em);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--white);
+  transition: background .25s;
+  position: relative;
+  overflow: hidden;
+}
+.fc:nth-child(3n)        { border-right: none; }
+.fc:nth-last-child(-n+3) { border-bottom: none; }
+.fc::before {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform .3s ease;
+}
+.fc:hover::before { transform: scaleX(1); }
+.fc:hover { background: var(--cream); }
+.fc-num {
+  font-family: var(--disp);
+  font-size: 2.5em;
+  color: var(--border);
+  line-height: 1;
+  margin-bottom: 1.4em;
+  transition: color .25s;
+}
+.fc:hover .fc-num { color: var(--muted); }
+.fc-title {
+  font-family: var(--mono);
+  font-size: .72em;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink);
+  margin-bottom: .7em;
+}
+.fc-desc { font-size: .76em; line-height: 1.75; color: var(--mid); }
+.fc-tag {
+  display: inline-block;
+  font-size: .56em;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  border: 1px solid var(--border);
+  padding: .18em .6em;
+  color: var(--muted);
+  margin-top: 1.1em;
+}
+
+/* ═══════════════════════════════════════════════════════
+   ARCHITECTURE
+═══════════════════════════════════════════════════════ */
+#arch { padding: clamp(5em, 10vh, 10em) 0; background: var(--white); }
+.arch-lay {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: clamp(2.5em, 5vw, 7em);
+  align-items: start;
+}
+.arch-stick { position: sticky; top: calc(var(--nav-h) + 1em); }
+.arch-items { display: flex; flex-direction: column; }
+.ai {
+  display: grid;
+  grid-template-columns: 6.875em 1fr auto;
+  gap: 1.5em;
+  padding: 1.4em 0;
+  border-top: 1px solid var(--border);
+  align-items: baseline;
+}
+.ai:last-child { border-bottom: 1px solid var(--border); }
+.ai-fn  { font-family: var(--mono); font-size: .83em; color: var(--accent); font-weight: 500; }
+.ai-desc { font-size: .78em; line-height: 1.7; color: var(--mid); }
+.ai-badge {
+  font-size: .56em;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  padding: .22em .65em;
+  background: var(--cream);
+  color: var(--muted);
+  white-space: nowrap;
+  border: 1px solid var(--border);
+}
+
+/* ═══════════════════════════════════════════════════════
+   INSTALL
+═══════════════════════════════════════════════════════ */
+#inst { background: var(--ink); padding: clamp(5em, 10vh, 10em) 0; overflow: hidden; }
+.inst-big {
+  font-family: var(--disp);
+  font-size: clamp(4.5em, 11vw, 13em);
+  line-height: .88;
+  letter-spacing: .01em;
+  color: var(--white);
+  margin-bottom: clamp(3em, 6vh, 5em);
+}
+.inst-big .stroke { -webkit-text-stroke: 1px rgba(255,255,255,.18); color: transparent; }
+.inst-big .red    { color: var(--accent); }
+.inst-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(2em, 4vw, 4em);
+  border-top: 1px solid rgba(255,255,255,.1);
+  padding-top: 3em;
+}
+.inst-lbl {
+  font-size: .6em;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.22);
+  margin-bottom: 1.4em;
+  display: flex;
+  align-items: center;
+  gap: .6em;
+}
+.inst-lbl::before {
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1px;
+  background: rgba(255,255,255,.18);
+}
+.codeln {
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  padding: .85em 1.2em;
+  font-family: var(--mono);
+  font-size: .76em;
+  color: #4EC9B0;
+  margin: .45em 0;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: .7em;
+}
+.codeln::before { content: '$'; color: rgba(255,255,255,.18); flex-shrink: 0; }
+.codeln:hover   { border-color: rgba(255,255,255,.2); background: rgba(255,255,255,.07); }
+.cp {
+  position: absolute;
+  right: 1em;
+  font-size: .58em;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.18);
+  opacity: 0;
+  transition: opacity .2s;
+}
+.codeln:hover .cp { opacity: 1; }
+.inst-warn {
+  margin-top: 2.2em;
+  padding: 1.1em 1.4em;
+  border: 1px solid rgba(212,56,13,.22);
+  border-left: 2px solid var(--accent);
+  font-size: .73em;
+  line-height: 1.7;
+  color: rgba(255,255,255,.32);
+}
+.inst-warn strong { color: rgba(255,255,255,.65); }
+
+/* ═══════════════════════════════════════════════════════
+   ROADMAP
+═══════════════════════════════════════════════════════ */
+#road { padding: clamp(5em, 10vh, 10em) 0; background: var(--cream); }
+.road-lay {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: clamp(2.5em, 5vw, 7em);
+  align-items: start;
+}
+.road-stick { position: sticky; top: calc(var(--nav-h) + 1em); }
+.road-list  { display: flex; flex-direction: column; }
+.ri {
+  display: grid;
+  grid-template-columns: 2em 1fr;
+  gap: 1em;
+  padding: 1.35em 0;
+  border-top: 1px solid var(--border);
+  align-items: baseline;
+}
+.ri:last-child { border-bottom: 1px solid var(--border); }
+.ri-ic { font-family: var(--mono); font-size: .78em; color: var(--muted); }
+.ri-ic.done { color: var(--green); }
+.ri-txt { font-size: .8em; line-height: 1.6; color: var(--mid); }
+.ri-txt.done { color: var(--ink2); }
+.ri-sub { font-size: .7em; color: var(--muted); margin-top: .28em; }
+
+/* ═══════════════════════════════════════════════════════
+   FOOTER
+═══════════════════════════════════════════════════════ */
+footer {
+  background: var(--ink);
+  padding: 4em 0 2.5em;
+  border-top: 1px solid rgba(255,255,255,.06);
+}
+.ft {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 2em;
+  flex-wrap: wrap;
+  padding-bottom: 2.8em;
+  margin-bottom: 2em;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+.flogo { font-family: var(--disp); font-size: 2.4em; color: var(--white); letter-spacing: .06em; }
+.flogo span { color: var(--accent); }
+.flinks { display: flex; gap: clamp(1.5em, 3vw, 2.8em); list-style: none; flex-wrap: wrap; }
+.flinks a {
+  font-family: var(--mono);
+  font-size: .66em;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.28);
+  text-decoration: none;
+  transition: color .2s;
+}
+.flinks a:hover { color: var(--white); }
+.fb { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1em; }
+.fcopy { font-size: .63em; letter-spacing: .1em; color: rgba(255,255,255,.18); font-family: var(--mono); }
+.fbadges { display: flex; gap: .45em; flex-wrap: wrap; }
+.fbdg {
+  font-family: var(--mono);
+  font-size: .57em;
+  letter-spacing: .08em;
+  padding: .18em .6em;
+  border: 1px solid rgba(255,255,255,.09);
+  color: rgba(255,255,255,.22);
+}
+
+/* ═══════════════════════════════════════════════════════
+   RESPONSIVE BREAKPOINTS  (em-based → still scale-aware)
+═══════════════════════════════════════════════════════ */
+@media (max-width: 56em) {
+  .hero-bottom, .mani-grid, .cryp-hd,
+  .feat-top, .arch-lay, .road-lay { grid-template-columns: 1fr; }
+  .hero-actions { justify-content: flex-start; }
+  .stats-row { grid-template-columns: 1fr 1fr; }
+  .stat-it { border-right: none; border-bottom: 1px solid rgba(255,255,255,.1); padding: 1.5em 0; }
+  .stat-it:nth-child(2n) { padding-left: 2em; }
+  .trm-lay { grid-template-columns: 1fr; }
+  .trm-win { position: static; }
+  .vlt-lay { grid-template-columns: 1fr; }
+  .cryp-rows { overflow-x: auto; }
+  .crow { min-width: 35em; }
+  .feat-grid { grid-template-columns: 1fr 1fr; }
+  .fc:nth-child(3n)        { border-right: 1px solid var(--border); }
+  .fc:nth-child(2n)        { border-right: none; }
+  .fc:nth-last-child(-n+3) { border-bottom: 1px solid var(--border); }
+  .fc:nth-last-child(-n+2) { border-bottom: none; }
+  .arch-stick, .road-stick { position: static; }
+  .ai { grid-template-columns: 6.25em 1fr; }
+  .ai-badge { display: none; }
+  .inst-cols { grid-template-columns: 1fr; }
+  .nav-links { display: none; }
+  .nav-ham   { display: flex; }
+  .ft { flex-direction: column; }
+}
+
+@media (max-width: 36em) {
+  .feat-grid { grid-template-columns: 1fr; }
+  .fc { border-right: none !important; }
+  .fc:not(:last-child)  { border-bottom: 1px solid var(--border) !important; }
+  .fc:last-child        { border-bottom: none !important; }
+  .vr { grid-template-columns: 3.375em 2.75em 1fr; }
+  .vc { font-size: .64em; padding: .6em .7em; }
+}
+
+/* ═══ KEYFRAMES ═══ */
+@keyframes fadeUp  { from { opacity:0; transform:translateY(1.75em); } to { opacity:1; transform:none; } }
+@keyframes ticker  { from { transform:translateX(0); } to { transform:translateX(-50%); } }
+</style>
+</head>
+<body>
+
+<!-- ── CURSOR (two layers, both mix-blend-mode:difference) ── -->
+<div id="cur-ring"></div>
+<div id="cur-dot"></div>
+
+<!-- MOBILE MENU -->
+<div class="mob-menu" id="mobMenu">
+  <button class="mob-close" id="mobClose">Close ✕</button>
+  <a href="#mani" onclick="closeMob()">About</a>
+  <a href="#trm"  onclick="closeMob()">Demo</a>
+  <a href="#cryp" onclick="closeMob()">Crypto</a>
+  <a href="#feat" onclick="closeMob()">Features</a>
+  <a href="#inst" onclick="closeMob()">Install</a>
+  <a href="#road" onclick="closeMob()">Roadmap</a>
+</div>
+
+<!-- NAV -->
+<nav>
+  <a href="#hero" class="nav-logo">Pass<span>W</span>ord</a>
+  <ul class="nav-links">
+    <li><a href="#mani">About</a></li>
+    <li><a href="#trm">Demo</a></li>
+    <li><a href="#cryp">Crypto</a></li>
+    <li><a href="#feat">Features</a></li>
+    <li><a href="#inst" class="nav-cta">Install</a></li>
+  </ul>
+  <button class="nav-ham" id="navHam" aria-label="Open menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<!-- ═══════════ HERO ═══════════ -->
+<section id="hero">
+  <div class="hero-content c">
+    <div class="hero-eyebrow">Part 1 of 2 — CLI Edition &nbsp;·&nbsp; Python 3.10+ &nbsp;·&nbsp; Zero Dependencies</div>
+    <h1 class="hero-h1">THE<br><span class="red">GLASS</span><br>BOX</h1>
+    <div class="hero-bottom">
+      <p class="hero-desc">Every cryptographic primitive implemented from first principles, in readable Python. No black boxes. Complete auditability from <code>main.py</code> down to GF(2⁸) field arithmetic — every step verifiable against published standards.</p>
+      <div class="hero-actions">
+        <a href="#inst" class="btn btn-dark">Install Now</a>
+        <a href="#trm"  class="btn btn-out">See Demo</a>
+      </div>
+    </div>
+  </div>
+  <div class="ticker-wrap">
+    <div class="ticker-track" aria-hidden="true">
+      <span class="t-it hl">AES-256-CBC</span><span class="t-it">·</span>
+      <span class="t-it">PBKDF2 — 600,000 Iterations</span><span class="t-it">·</span>
+      <span class="t-it hl">HMAC-SHA256</span><span class="t-it">·</span>
+      <span class="t-it">Zero Dependencies</span><span class="t-it">·</span>
+      <span class="t-it hl">FIPS 197</span><span class="t-it">·</span>
+      <span class="t-it">NIST SP 800-132</span><span class="t-it">·</span>
+      <span class="t-it hl">RFC 2104</span><span class="t-it">·</span>
+      <span class="t-it">Python 3.10+</span><span class="t-it">·</span>
+      <!-- duplicate for seamless loop -->
+      <span class="t-it hl">AES-256-CBC</span><span class="t-it">·</span>
+      <span class="t-it">PBKDF2 — 600,000 Iterations</span><span class="t-it">·</span>
+      <span class="t-it hl">HMAC-SHA256</span><span class="t-it">·</span>
+      <span class="t-it">Zero Dependencies</span><span class="t-it">·</span>
+      <span class="t-it hl">FIPS 197</span><span class="t-it">·</span>
+      <span class="t-it">NIST SP 800-132</span><span class="t-it">·</span>
+      <span class="t-it hl">RFC 2104</span><span class="t-it">·</span>
+      <span class="t-it">Python 3.10+</span><span class="t-it">·</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ MANIFESTO ═══════════ -->
+<section id="mani">
+  <div class="c" style="padding-top:clamp(5em,10vh,10em);padding-bottom:clamp(5em,10vh,10em)">
+    <div class="mani-grid">
+      <div class="mani-big rl">NOT<br>A<br><span class="stroke">BLACK</span><br>BOX</div>
+      <div class="mani-r rv">
+        <p class="mani-quote">"Most password managers are black boxes. You trust the library does the right thing — with no way to verify. This one is a glass box."</p>
+        <p class="body-txt">Every cryptographic primitive — AES-256 block cipher, PBKDF2 key derivation, HMAC-SHA256 integrity check, PKCS#7 padding, SHA-256 compression — is implemented from first principles in readable Python. You can trace from <code>main.py</code> down to GF(2⁸) field arithmetic and understand every step.</p>
+        <p class="body-txt">Part 1 of 2. The GUI edition (Tkinter) is in active development and will share this exact cryptographic core without modification — zero code duplication between editions.</p>
+        <a href="#cryp" class="btn btn-dark" style="align-self:flex-start;margin-top:.5em">Explore the Crypto Stack</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ STATS ═══════════ -->
+<section id="stats">
+  <div class="c">
+    <div class="stats-row rv">
+      <div class="stat-it">
+        <span class="s-num">600<span class="a">K</span></span>
+        <span class="s-lbl">PBKDF2 Iterations</span>
+      </div>
+      <div class="stat-it">
+        <span class="s-num"><span class="a">0</span></span>
+        <span class="s-lbl">External Dependencies</span>
+      </div>
+      <div class="stat-it">
+        <span class="s-num">256<span class="a">-bit</span></span>
+        <span class="s-lbl">AES Encryption</span>
+      </div>
+      <div class="stat-it">
+        <span class="s-num">5</span>
+        <span class="s-lbl">Source Files</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ TERMINAL ═══════════ -->
+<section id="trm">
+  <div class="c" style="padding-top:clamp(5em,10vh,10em);padding-bottom:clamp(5em,10vh,10em)">
+    <div class="trm-lay">
+      <div class="trm-copy rl">
+        <div class="eyebrow">Interactive Demo</div>
+        <h2 class="s-title">See it<br>in action</h2>
+        <p class="body-txt" style="margin-top:1.5em">Every screen is real CLI output. No mockups — this is exactly what you see after running <code>python main.py</code>.</p>
+        <div class="trm-tabs">
+          <button class="ttab on" onclick="swt(this,'tp-main')">Main Menu</button>
+          <button class="ttab"    onclick="swt(this,'tp-add')">Add Entry</button>
+          <button class="ttab"    onclick="swt(this,'tp-audit')">Security Audit</button>
+          <button class="ttab"    onclick="swt(this,'tp-sha')">SHA-256 Visualizer</button>
+          <button class="ttab"    onclick="swt(this,'tp-brute')">Bruteforce Simulator</button>
+        </div>
+      </div>
+
+      <div class="trm-win rv">
+        <div class="tbar">
+          <div class="td r"></div><div class="td y"></div><div class="td g"></div>
+          <span class="t-ttl" id="tttl">python main.py my.vault</span>
+        </div>
+        <div class="tbody">
+
+          <div class="tp on" id="tp-main"><pre>
+<span class="tc">  ───────────────────────────────────────────────</span>
+  <span class="th_">VAULT:</span> my.vault  |  <span class="th_">ENTRIES:</span> 12  |  <span class="th_">AUTO-LOCK:</span> 5min
+<span class="tc">  ───────────────────────────────────────────────</span>
+
+<span class="tc">  CREDENTIALS</span>
+    <span class="tb_">[1]</span>  List all entries
+    <span class="tb_">[2]</span>  Search entries
+    <span class="tb_">[3]</span>  Add new entry
+    <span class="tb_">[4]</span>  Edit entry
+    <span class="tb_">[5]</span>  Delete entry
+
+<span class="tc">  TOOLS</span>
+    <span class="tb_">[6]</span>  Password generator
+    <span class="tb_">[7]</span>  Security audit
+    <span class="tb_">[8]</span>  Bruteforce simulator
+    <span class="tb_">[9]</span>  SHA-256 hash visualizer
+
+<span class="tc">  SYSTEM</span>
+    <span class="tb_">[A]</span>  View audit log  <span class="tb_">[L]</span>  Lock  <span class="tb_">[Q]</span>  Quit
+
+  <span class="tkw">›</span> <span style="display:inline-block;width:.44em;height:.75em;background:#569CD6;vertical-align:text-bottom;animation:blink 1s step-end infinite"></span></pre>
+          </div>
+
+          <div class="tp" id="tp-add"><pre>
+<span class="tc">  ───────────────────────────────────────────────</span>
+  <span class="th_">                  ADD ENTRY</span>
+<span class="tc">  ───────────────────────────────────────────────</span>
+  <span class="tkw">›</span>  Site / Service name  : <span class="ts">github.com</span>
+  <span class="tkw">›</span>  Username / Email     : <span class="ts">alice@example.com</span>
+  <span class="tkw">›</span>  Generate password? [y/N]: <span class="ts">y</span>
+
+    Generated Password:
+    <span class="th_">K#9mP$vR2@nX!qL7wZ&amp;j</span>
+
+    Stats:
+    Length  : <span class="tg">20 chars</span>
+    Entropy : <span class="tg">131.1 bits</span>
+    Strength: <span class="tg">Excellent</span>
+    [<span class="tg">████████████████████████████████████████</span>]
+
+  <span class="tg">&#10003;  Entry [3] saved for github.com.</span></pre>
+          </div>
+
+          <div class="tp" id="tp-audit"><pre>
+<span class="tc">  ───────────────────────────────────────────────</span>
+  <span class="th_">            VAULT SECURITY AUDIT</span>
+<span class="tc">  ───────────────────────────────────────────────</span>
+  Scanning <span class="tb_">12</span> entries...
+
+  <span class="tb_">[ CHECK 1 ]</span> PASSWORD REUSE
+  <span class="tw">&#9888;  Same password: twitter.com, instagram.com</span>
+
+  <span class="tb_">[ CHECK 2 ]</span> PASSWORD AGE (&gt;90 days)
+  <span class="tw">&#9888;  facebook.com — last changed 2024-08-12</span>
+  <span class="tw">&#9888;  amazon.com   — last changed 2024-07-01</span>
+
+  <span class="tb_">[ CHECK 3 ]</span> PASSWORD STRENGTH
+  <span class="tw">&#9888;  reddit.com — Fair (44 bits)</span>
+
+  Audit complete.
+  <span class="tr_">&#9888;  4 issue(s) found.</span></pre>
+          </div>
+
+          <div class="tp" id="tp-sha"><pre>
+  <span class="th_">SHA-256 VISUALIZATION</span>
+<span class="tc">  ───────────────────────────────────────────────</span>
+  INPUT TEXT  : <span class="ts">'hello'</span>
+  UTF-8 BYTES : <span class="tg">68 65 6C 6C 6F</span>
+  LENGTH      : 5 bytes = 40 bits
+
+  <span class="tb_">[ STEP 1 ]</span> PRE-PROCESSING &amp; PADDING
+  &#8594; 1 block(s) of 512 bits
+
+  <span class="tb_">[ STEP 2 ]</span> MESSAGE SCHEDULE W[0..63]
+    W[00]=68656C6C  W[01]=6F800000  ...
+
+  <span class="tb_">[ STEP 3 ]</span> COMPRESSION — 64 ROUNDS
+<span class="tc">   Rnd         a           b           c</span>
+     0  <span class="tg">6A09E667</span>  BB67AE85  3C6EF372 ...
+     1  <span class="tg">5D6AEBB1</span>  6A09E667  BB67AE85 ...
+
+  <span class="tb_">[ FINAL ]</span> SHA-256 DIGEST
+  <span class="tg">2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c</span>
+  <span class="tg">&#10003; Verified against Python hashlib</span></pre>
+          </div>
+
+          <div class="tp" id="tp-brute"><pre>
+  <span class="th_">BRUTEFORCE SIMULATOR</span>
+<span class="tc">  ───────────────────────────────────────────────</span>
+  Password         SHA-256       PBKDF2-600k    Bits
+<span class="tc">  ───────────────────────────────────────────────</span>
+  <span class="tr_">password</span>         &lt; 1 second    &lt; 1 second      18
+  <span class="tr_">123456</span>           &lt; 1 second    &lt; 1 second      20
+  <span class="tw">letmein</span>          &lt; 1 second    4.8 minutes     34
+  <span class="tw">sunshine</span>         &lt; 1 second    1.9 hours       37
+  <span class="tg">K#9mP$vR2@nX!</span>   &gt; 10B years   &#8734;              131
+<span class="tc">  ───────────────────────────────────────────────</span>
+  100M SHA-256/sec · 1 PBKDF2/sec (single CPU)
+  <span class="tb_">PBKDF2 scales poorly on GPUs — by design.</span></pre>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ VAULT FORMAT ═══════════ -->
+<section id="vlt">
+  <div class="c" style="padding-top:clamp(5em,10vh,10em);padding-bottom:clamp(5em,10vh,10em)">
+    <div class="vlt-lay">
+      <div class="rl">
+        <div class="eyebrow">Binary Layout</div>
+        <h2 class="s-title" style="font-size:clamp(2.5em,5vw,5.5em)">Custom<br>vault<br>format</h2>
+        <p class="body-txt" style="margin-top:1.5em">No SQLite. No XML. A tight, versioned binary format designed from scratch. The HMAC is verified <em>before</em> decryption — preventing padding oracle attacks by design.</p>
+        <div class="vnote"><strong>Encrypt-then-MAC.</strong> PassWord refuses to pass a single byte to the AES decryptor until the HMAC is confirmed valid. The order is a security requirement, not a convention.</div>
+      </div>
+      <div class="rv">
+        <div class="vlt-tbl">
+          <div class="vr hd"><div class="vc">Offset</div><div class="vc">Size</div><div class="vc">Field</div></div>
+          <div class="vr v-magic"><div class="vc">0</div><div class="vc">4 B</div><div class="vc">Magic bytes — <code>b"PVLT"</code></div></div>
+          <div class="vr"><div class="vc">4</div><div class="vc">1 B</div><div class="vc">Version — <code>0x01</code></div></div>
+          <div class="vr"><div class="vc">5</div><div class="vc">32 B</div><div class="vc">Salt — random, fixed at vault creation. Not a secret; unique per vault.</div></div>
+          <div class="vr v-iv"><div class="vc">37</div><div class="vc">16 B</div><div class="vc">IV — random, regenerated on every save. Prevents CBC keystream reuse.</div></div>
+          <div class="vr"><div class="vc">53</div><div class="vc">4 B</div><div class="vc">Ciphertext length — uint32, big-endian</div></div>
+          <div class="vr v-ct"><div class="vc">57</div><div class="vc">N B</div><div class="vc">Ciphertext — AES-256-CBC encrypted JSON</div></div>
+          <div class="vr v-hmac"><div class="vc">57+N</div><div class="vc">32 B</div><div class="vc">HMAC-SHA256 — covers all preceding bytes. Verified first.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ CRYPTO STACK ═══════════ -->
+<section id="cryp">
+  <div class="c" style="padding-top:clamp(5em,10vh,10em);padding-bottom:clamp(5em,10vh,10em)">
+    <div class="cryp-hd rv">
+      <div class="cryp-title">THE<br>FULL<br><span class="stroke">STACK</span></div>
+      <p class="cryp-desc">Every primitive is either implemented from scratch in readable Python or uses a Python stdlib module. No third-party cryptography libraries — a reviewer can trace every computation against published standards.</p>
+    </div>
+    <div class="cryp-rows rv">
+      <div class="crow hd">
+        <div class="cc">Primitive</div>
+        <div class="cc">Implementation</div>
+        <div class="cc">Standard</div>
+        <div class="cc">Purpose</div>
+      </div>
+      <div class="crow">
+        <div class="cc nm">AES-256-CBC</div>
+        <div class="cc im">From scratch <span class="chip chs">custom</span></div>
+        <div class="cc st">FIPS 197</div>
+        <div class="cc pu">Vault encryption</div>
+      </div>
+      <div class="crow">
+        <div class="cc nm">PBKDF2-SHA256</div>
+        <div class="cc im"><code>hashlib.pbkdf2_hmac</code> <span class="chip chl">stdlib</span></div>
+        <div class="cc st">RFC 2898 / NIST SP 800-132</div>
+        <div class="cc pu">Key derivation from master password</div>
+      </div>
+      <div class="crow">
+        <div class="cc nm">HMAC-SHA256</div>
+        <div class="cc im"><code>hmac</code> module <span class="chip chl">stdlib</span></div>
+        <div class="cc st">RFC 2104</div>
+        <div class="cc pu">Vault integrity &amp; tamper detection</div>
+      </div>
+      <div class="crow">
+        <div class="cc nm">PKCS#7 Padding</div>
+        <div class="cc im">From scratch <span class="chip chs">custom</span></div>
+        <div class="cc st">RFC 5652</div>
+        <div class="cc pu">AES block padding</div>
+      </div>
+      <div class="crow">
+        <div class="cc nm">SHA-256</div>
+        <div class="cc im">From scratch <span class="chip chs">custom</span></div>
+        <div class="cc st">FIPS 180-4</div>
+        <div class="cc pu">Visualizer &amp; learning tool</div>
+      </div>
+      <div class="crow">
+        <div class="cc nm">CSPRNG</div>
+        <div class="cc im"><code>os.urandom()</code> <span class="chip chl">stdlib</span></div>
+        <div class="cc st">OS-provided</div>
+        <div class="cc pu">All randomness — keys, salts, IVs</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ FEATURES ═══════════ -->
+<section id="feat">
+  <div class="c" style="padding-top:clamp(5em,10vh,10em);padding-bottom:clamp(5em,10vh,10em)">
+    <div class="feat-top">
+      <div class="rl">
+        <div class="eyebrow">Capabilities</div>
+        <h2 class="s-title">What's<br>inside</h2>
+      </div>
+      <p class="body-txt rv" style="align-self:end;max-width:22.5em">No black boxes, no external libraries. Every feature is readable, auditable source code you can trace from UI down to raw bytes.</p>
+    </div>
+    <div class="feat-grid rv">
+      <div class="fc"><div class="fc-num">01</div><div class="fc-title">AES-256-CBC Encryption</div><div class="fc-desc">S-box lookups, GF(2⁸) field arithmetic in MixColumns, key schedule expansion, all 14 rounds — readable and verifiable against FIPS 197.</div><span class="fc-tag">FIPS 197</span></div>
+      <div class="fc"><div class="fc-num">02</div><div class="fc-title">PBKDF2 Key Derivation</div><div class="fc-desc">600,000 iterations of PBKDF2-HMAC-SHA256. Each wrong guess costs ~0.6s CPU time. Resists GPU acceleration by design.</div><span class="fc-tag">NIST SP 800-132</span></div>
+      <div class="fc"><div class="fc-num">03</div><div class="fc-title">Encrypt-then-MAC</div><div class="fc-desc">HMAC verified before decryption. Prevents padding oracle attacks — no bytes reach the AES decryptor until HMAC is valid.</div><span class="fc-tag">RFC 2104</span></div>
+      <div class="fc"><div class="fc-num">04</div><div class="fc-title">Unbiased Password Gen</div><div class="fc-desc">Rejection sampling ensures perfectly uniform distribution. The naive modulo bias (~50% skew) is explicitly avoided.</div><span class="fc-tag">os.urandom()</span></div>
+      <div class="fc"><div class="fc-num">05</div><div class="fc-title">Security Auditor</div><div class="fc-desc">Scans for password reuse, aging credentials (&gt;90 days), and weak passwords by entropy analysis with actionable warnings.</div><span class="fc-tag">Built-in</span></div>
+      <div class="fc"><div class="fc-num">06</div><div class="fc-title">SHA-256 Visualizer</div><div class="fc-desc">Watch every round of the FIPS 180-4 compression function in real time. Three speeds. Verified against Python hashlib every run.</div><span class="fc-tag">Educational</span></div>
+      <div class="fc"><div class="fc-num">07</div><div class="fc-title">Bruteforce Simulator</div><div class="fc-desc">Compare SHA-256 vs PBKDF2 crack times for real passwords. Shows exactly why key stretching matters.</div><span class="fc-tag">Interactive</span></div>
+      <div class="fc"><div class="fc-num">08</div><div class="fc-title">Key Zeroing on Lock</div><div class="fc-desc">Session keys in mutable <code>bytearray</code>, overwritten byte-by-byte with zeros on lock. Reduces key exposure in memory dumps.</div><span class="fc-tag">Defense in Depth</span></div>
+      <div class="fc"><div class="fc-num">09</div><div class="fc-title">Zero Dependencies</div><div class="fc-desc">If it's not in the Python standard library, it's not in this project. No pip, no virtualenv, no external packages — ever.</div><span class="fc-tag">Portable</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ ARCHITECTURE ═══════════ -->
+<section id="arch">
+  <div class="c" style="padding-top:clamp(5em,10vh,10em);padding-bottom:clamp(5em,10vh,10em)">
+    <div class="arch-lay">
+      <div class="arch-stick rl">
+        <div class="eyebrow">Code Layout</div>
+        <h2 class="s-title" style="font-size:clamp(2.5em,5vw,5.5em)">Clean<br>layers</h2>
+        <p class="body-txt" style="margin-top:1.5em"><code>crypto.py</code> has zero UI knowledge. <code>vault.py</code> has zero menu knowledge. <code>main.py</code> never touches raw bytes.</p>
+        <p class="body-txt" style="margin-top:1em">This clean separation is why the GUI version (Part 2) can drop in the same core unchanged — zero code duplication between editions.</p>
+      </div>
+      <div class="arch-items rv">
+        <div class="ai"><div class="ai-fn">main.py</div><div class="ai-desc">Entry point · CLI menus · auth flow · session lifecycle. Never touches raw bytes or cryptographic primitives directly.</div><span class="ai-badge">UI Layer</span></div>
+        <div class="ai"><div class="ai-fn">tools.py</div><div class="ai-desc">Password generator · security auditor · bruteforce simulator. No knowledge of encryption or menus.</div><span class="ai-badge">Tools Layer</span></div>
+        <div class="ai"><div class="ai-fn">vault.py</div><div class="ai-desc">Binary .vault format · HMAC verification · audit logging. No knowledge of sessions, menus, or UI state.</div><span class="ai-badge">Storage Layer</span></div>
+        <div class="ai"><div class="ai-fn">constants.py</div><div class="ai-desc">Constants · custom exception classes · terminal helpers. Shared across all layers with no upward dependencies.</div><span class="ai-badge">Shared</span></div>
+        <div class="ai"><div class="ai-fn">crypto.py</div><div class="ai-desc">AES-256-CBC · PBKDF2 · HMAC-SHA256 · SHA-256 visualizer. Pure computation with zero UI knowledge.</div><span class="ai-badge">Crypto Layer</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ INSTALL ═══════════ -->
+<section id="inst">
+  <div class="c" style="padding-top:clamp(5em,10vh,10em);padding-bottom:clamp(5em,10vh,10em)">
+    <div class="inst-big rv">GET<br><span class="stroke">STAR</span><span class="red">TED</span></div>
+    <div class="inst-cols rv">
+      <div>
+        <div class="inst-lbl">Option A — Recommended</div>
+        <p style="font-size:.78em;line-height:1.8;color:rgba(255,255,255,.38);margin-bottom:1.4em">Download only <code style="color:rgba(255,255,255,.6)">install.py</code>. All five source files are embedded as base64 — no pip, no virtualenv, no system packages touched.</p>
+        <div class="codeln" onclick="cpcode(this,'python install.py')">python install.py<span class="cp">copy</span></div>
+        <div class="codeln" onclick="cpcode(this,'python install.py ~/apps/my-vault')">python install.py ~/apps/my-vault<span class="cp">copy</span></div>
+        <div class="codeln" onclick="cpcode(this,'python install.py --check')">python install.py --check<span class="cp">copy</span></div>
+        <div class="inst-warn" style="margin-top:2em"><strong>No recovery possible.</strong> Forgotten master password = permanently locked vault. No backdoor, no recovery email. Back up your <code>.vault</code> file regularly.</div>
+      </div>
+      <div>
+        <div class="inst-lbl">Option B — Git Clone</div>
+        <p style="font-size:.78em;line-height:1.8;color:rgba(255,255,255,.38);margin-bottom:1.4em">Clone and run directly. No build step, no compilation, no setup.py.</p>
+        <div class="codeln" onclick="cpcode(this,'git clone https://github.com/yourusername/password-manager.git')">git clone github.com/…/password-manager<span class="cp">copy</span></div>
+        <div class="codeln" onclick="cpcode(this,'python main.py')">python main.py<span class="cp">copy</span></div>
+        <div class="codeln" onclick="cpcode(this,'python main.py work.vault')">python main.py work.vault<span class="cp">copy</span></div>
+        <div style="margin-top:2.2em">
+          <div class="inst-lbl">Requirements</div>
+          <div style="display:flex;flex-wrap:wrap;gap:.45em;margin-top:.8em">
+            <span style="font-family:var(--mono);font-size:.6em;letter-spacing:.08em;border:1px solid rgba(255,255,255,.1);padding:.2em .65em;color:rgba(255,255,255,.28)">Python 3.10+</span>
+            <span style="font-family:var(--mono);font-size:.6em;letter-spacing:.08em;border:1px solid rgba(255,255,255,.1);padding:.2em .65em;color:rgba(255,255,255,.28)">MIT License</span>
+            <span style="font-family:var(--mono);font-size:.6em;letter-spacing:.08em;border:1px solid rgba(255,255,255,.1);padding:.2em .65em;color:rgba(255,255,255,.28)">Windows · macOS · Linux</span>
+            <span style="font-family:var(--mono);font-size:.6em;letter-spacing:.08em;border:1px solid rgba(255,255,255,.1);padding:.2em .65em;color:rgba(255,255,255,.28)">No External Libraries</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ ROADMAP ═══════════ -->
+<section id="road">
+  <div class="c" style="padding-top:clamp(5em,10vh,10em);padding-bottom:clamp(5em,10vh,10em)">
+    <div class="road-lay">
+      <div class="road-stick rl">
+        <div class="eyebrow">What's Next</div>
+        <h2 class="s-title" style="font-size:clamp(2.5em,5vw,5.5em)">Road<br>map</h2>
+        <p class="body-txt" style="margin-top:1.5em">Part 1 is complete and stable. Part 2 (Tkinter GUI) shares this exact cryptographic core — zero code duplication between CLI and GUI editions.</p>
+      </div>
+      <div class="road-list rv">
+        <div class="ri"><div class="ri-ic done">&#10003;</div><div><div class="ri-txt done">CLI edition with full cryptographic core</div><div class="ri-sub">AES-256, PBKDF2, HMAC, SHA-256 visualizer, security auditor, bruteforce sim</div></div></div>
+        <div class="ri"><div class="ri-ic done">&#10003;</div><div><div class="ri-txt done">Self-contained cross-platform installer</div><div class="ri-sub">All 5 source files embedded as base64 in install.py</div></div></div>
+        <div class="ri"><div class="ri-ic">&#9633;</div><div><div class="ri-txt">Part 2 — Tkinter GUI wrapper</div><div class="ri-sub">Shared crypto/vault core, zero code duplication</div></div></div>
+        <div class="ri"><div class="ri-ic">&#9633;</div><div><div class="ri-txt">Vault export to encrypted CSV / JSON</div><div class="ri-sub">Portable backup format with encryption preserved</div></div></div>
+        <div class="ri"><div class="ri-ic">&#9633;</div><div><div class="ri-txt">Vault backup with automatic versioning</div></div></div>
+        <div class="ri"><div class="ri-ic">&#9633;</div><div><div class="ri-txt">TOTP / 2FA code generation</div></div></div>
+        <div class="ri"><div class="ri-ic">&#9633;</div><div><div class="ri-txt">Multi-vault support</div><div class="ri-sub">Switch between vaults without restarting</div></div></div>
+        <div class="ri"><div class="ri-ic">&#9633;</div><div><div class="ri-txt">Argon2id as alternative KDF</div><div class="ri-sub">Stronger memory-hardness than PBKDF2</div></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ FOOTER ═══════════ -->
+<footer>
+  <div class="c">
+    <div class="ft">
+      <div class="flogo">Pass<span>W</span>ord</div>
+      <ul class="flinks">
+        <li><a href="#">GitHub</a></li>
+        <li><a href="#">Changelog</a></li>
+        <li><a href="#">Security Policy</a></li>
+        <li><a href="#">Contributing</a></li>
+        <li><a href="#">MIT License</a></li>
+      </ul>
+    </div>
+    <div class="fb">
+      <span class="fcopy">MIT LICENSE &copy; 2026 — PassWord Project</span>
+      <div class="fbadges">
+        <span class="fbdg">FIPS 197</span>
+        <span class="fbdg">FIPS 180-4</span>
+        <span class="fbdg">NIST SP 800-132</span>
+        <span class="fbdg">RFC 2104</span>
+        <span class="fbdg">RFC 2898</span>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ════════════════════════════════════════════════
+   CURSOR
+   Both layers use mix-blend-mode:difference in CSS.
+   This means the white ring/dot gets colour-inverted
+   against whatever background they sit on:
+     • on light cream/white  → appears dark/black
+     • on dark ink sections  → appears white
+   No JS colour toggling needed at all.
+════════════════════════════════════════════════ */
+const ring = document.getElementById('cur-ring');
+const dot  = document.getElementById('cur-dot');
+let mx = -300, my = -300;   // start off-screen
+let rx = -300, ry = -300;   // ring lags behind
+
+(function animLoop() {
+  // Ring follows with smooth lag (lerp)
+  rx += (mx - rx) * 0.13;
+  ry += (my - ry) * 0.13;
+  ring.style.left = rx + 'px';
+  ring.style.top  = ry + 'px';
+  // Dot snaps instantly
+  dot.style.left = mx + 'px';
+  dot.style.top  = my + 'px';
+  requestAnimationFrame(animLoop);
+})();
+
+document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; }, { passive: true });
+
+// Fade out when cursor leaves the window
+document.addEventListener('mouseleave', () => { ring.style.opacity = '0'; dot.style.opacity = '0'; });
+document.addEventListener('mouseenter', () => { ring.style.opacity = '1'; dot.style.opacity = '1'; });
+
+// Expand on interactive elements
+const hoverEls = document.querySelectorAll('a, button, .codeln, .fc, .ai, .ttab, .ri');
+hoverEls.forEach(el => {
+  el.addEventListener('mouseenter', () => document.body.classList.add('hov'));
+  el.addEventListener('mouseleave', () => document.body.classList.remove('hov'));
+});
+
+/* ════════════════════════════════════════════════
+   SCROLL REVEAL
+════════════════════════════════════════════════ */
+const revealObs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) { e.target.classList.add('in'); revealObs.unobserve(e.target); }
+  });
+}, { threshold: 0.07 });
+document.querySelectorAll('.rv, .rl').forEach(el => revealObs.observe(el));
+
+/* ════════════════════════════════════════════════
+   TERMINAL TABS
+════════════════════════════════════════════════ */
+const tmap = {
+  'tp-main':  'python main.py my.vault',
+  'tp-add':   'Add Entry',
+  'tp-audit': 'Security Audit',
+  'tp-sha':   'SHA-256 Visualizer',
+  'tp-brute': 'Bruteforce Simulator',
+};
+function swt(btn, id) {
+  document.querySelectorAll('.ttab').forEach(b => b.classList.remove('on'));
+  document.querySelectorAll('.tp').forEach(p => p.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById(id).classList.add('on');
+  document.getElementById('tttl').textContent = tmap[id];
+}
+
+/* ════════════════════════════════════════════════
+   COPY CODE
+════════════════════════════════════════════════ */
+function cpcode(el, txt) {
+  navigator.clipboard.writeText(txt).then(() => {
+    const cp = el.querySelector('.cp');
+    if (cp) { cp.textContent = 'copied!'; cp.style.opacity = '1'; }
+    el.style.borderColor = 'rgba(78,201,176,.5)';
+    setTimeout(() => {
+      if (cp) { cp.textContent = 'copy'; cp.style.opacity = ''; }
+      el.style.borderColor = '';
+    }, 1400);
+  });
+}
+
+/* ════════════════════════════════════════════════
+   MOBILE MENU
+════════════════════════════════════════════════ */
+const mob = document.getElementById('mobMenu');
+document.getElementById('navHam').addEventListener('click', () => mob.classList.add('open'));
+document.getElementById('mobClose').addEventListener('click', () => mob.classList.remove('open'));
+function closeMob() { mob.classList.remove('open'); }
+
+/* ════════════════════════════════════════════════
+   NAV ACTIVE STATE
+════════════════════════════════════════════════ */
+const allSecs = document.querySelectorAll('section[id]');
+const navLinks = document.querySelectorAll('.nav-links a:not(.nav-cta)');
+window.addEventListener('scroll', () => {
+  let cur = '';
+  allSecs.forEach(s => { if (scrollY >= s.offsetTop - 110) cur = s.id; });
+  navLinks.forEach(a => { a.style.color = a.getAttribute('href') === '#' + cur ? 'var(--ink)' : ''; });
+}, { passive: true });
+</script>
+</body>
+</html>
